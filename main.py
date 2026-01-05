@@ -71,19 +71,20 @@ async def zoom_webhook(request: Request):
 async def get_leaderboard():
     conn = await get_db()
     rows = await conn.fetch("""
-        SELECT user_name, join_time, duration_minutes 
+        SELECT 
+            user_name, 
+            join_time, 
+            duration_minutes AS total_mins  -- This renames it for Lovable
         FROM attendance 
         WHERE duration_minutes IS NOT NULL
     """)
     await conn.close()
     
-    # We "standardize" the data here before sending it to Lovable
     standardized_data = []
     for row in rows:
         standardized_data.append({
             "user_name": row["user_name"],
-            # .isoformat() adds the "T" and "+00:00" that prevents the Invalid Date error
             "join_time": row["join_time"].isoformat() if row["join_time"] else None,
-            "total_mins": row["duration_minutes"]
+            "total_mins": row["total_mins"] # Lovable is looking for this key!
         })
     return standardized_data
