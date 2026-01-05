@@ -27,6 +27,7 @@ async def zoom_webhook(request: Request):
     data = await request.json()
     event = data.get("event")
 
+    # Zoom Security Validation
     if event == "endpoint.url_validation":
         plain_token = data["payload"]["plainToken"]
         secret = os.getenv("ZOOM_WEBHOOK_SECRET")
@@ -55,13 +56,15 @@ async def zoom_webhook(request: Request):
         )
     
     elif event == "meeting.participant_left":
-        # Find the row that doesn't have a leave_time yet and update it
+        # BULLETPROOF LOGIC: Finds the row by Email OR Name to ensure the Leave time is saved
         await conn.execute(
             """UPDATE attendance 
                SET leave_time = $1, 
                    duration_minutes = EXTRACT(EPOCH FROM ($1 - join_time))/60 
-               WHERE email = $2 AND session_id = $3 AND leave_time IS NULL""",
-            timestamp, email, str(meeting_id)
+               WHERE (email = $2 OR user_name = $3) 
+               AND session_id = $4 
+               AND leave_time IS NULL""",
+            timestamp, email, name, str(meeting_id)
         )
 
     await conn.close()
@@ -70,21 +73,23 @@ async def zoom_webhook(request: Request):
 @app.get("/leaderboard")
 async def get_leaderboard():
     conn = await get_db()
+    # Pulls all completed sessions and renames the column to 'total_mins' for Lovable
     rows = await conn.fetch("""
         SELECT 
             user_name, 
             join_time, 
-            duration_minutes AS total_mins  -- This renames it for Lovable
+            duration_minutes AS total_mins
         FROM attendance 
         WHERE duration_minutes IS NOT NULL
     """)
     await conn.close()
     
+    # Standardize for Lovable (ISO Format Dates)
     standardized_data = []
     for row in rows:
         standardized_data.append({
             "user_name": row["user_name"],
             "join_time": row["join_time"].isoformat() if row["join_time"] else None,
-            "total_mins": row["total_mins"] # Lovable is looking for this key!
+            "total_mins": row["total_mins"]
         })
     return standardized_data
