@@ -63,14 +63,12 @@ async def zoom_webhook(request: Request):
 
 @app.get("/leaderboard")
 async def get_leaderboard():
-    # This is what Lovable will look at to show the scores
     conn = await get_db()
+    # This pulls ALL time data so Lovable can calculate Daily vs Monthly
     rows = await conn.fetch("""
-        SELECT user_name, SUM(duration_minutes) as total_mins 
+        SELECT user_name, join_time, duration_minutes 
         FROM attendance 
-        WHERE join_time::date = CURRENT_DATE
-        GROUP BY user_name 
-        ORDER BY total_mins DESC
+        WHERE duration_minutes IS NOT NULL
     """)
     await conn.close()
     return [dict(r) for r in rows]
