@@ -70,11 +70,20 @@ async def zoom_webhook(request: Request):
 @app.get("/leaderboard")
 async def get_leaderboard():
     conn = await get_db()
-    # Pulls all completed sessions for both Daily and Monthly stats
     rows = await conn.fetch("""
         SELECT user_name, join_time, duration_minutes 
         FROM attendance 
         WHERE duration_minutes IS NOT NULL
     """)
     await conn.close()
-    return [dict(r) for r in rows]
+    
+    # We "standardize" the data here before sending it to Lovable
+    standardized_data = []
+    for row in rows:
+        standardized_data.append({
+            "user_name": row["user_name"],
+            # .isoformat() adds the "T" and "+00:00" that prevents the Invalid Date error
+            "join_time": row["join_time"].isoformat() if row["join_time"] else None,
+            "total_mins": row["duration_minutes"]
+        })
+    return standardized_data
