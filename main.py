@@ -7,6 +7,14 @@ import asyncpg
 
 app = FastAPI()
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"], # This allows Lovable to see the data
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 # This connects to the database Railway gives you
 DATABASE_URL = os.getenv("DATABASE_URL")
 
