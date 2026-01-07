@@ -70,26 +70,27 @@ async def zoom_webhook(request: Request):
     await conn.close()
     return {"status": "success"}
 
+# In main.py
 @app.get("/leaderboard")
 async def get_leaderboard():
     conn = await get_db()
-    # Pulls all completed sessions and renames the column to 'total_mins' for Lovable
     rows = await conn.fetch("""
         SELECT 
             user_name, 
             join_time, 
+            leave_time, -- Add this!
             duration_minutes AS total_mins
         FROM attendance 
         WHERE duration_minutes IS NOT NULL
     """)
     await conn.close()
     
-    # Standardize for Lovable (ISO Format Dates)
     standardized_data = []
     for row in rows:
         standardized_data.append({
             "user_name": row["user_name"],
-            "join_time": row["join_time"].isoformat() if row["join_time"] else None,
+            "join_time": row["join_time"].isoformat(),
+            "end_time": row["leave_time"].isoformat() if row["leave_time"] else None, # Add this!
             "total_mins": row["total_mins"]
         })
     return standardized_data
